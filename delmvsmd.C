@@ -1,0 +1,124 @@
+/*#include "Belle2Style.h"
+#include "Belle2Utils.h"
+#include "Belle2Labels.h"
+
+void SetBelle2Style() {
+  static TStyle* belle2Style = 0;
+  cout << "\nApplying BELLE2 style settings...\n" << endl ;
+  if (!belle2Style)
+    belle2Style = Belle2Style();
+  gROOT->SetStyle("BELLE2");
+  gROOT->ForceStyle();
+}
+*/
+void delmvsmd()
+{
+  //SetBelle2Style();
+  TChain *t1 = new TChain();
+  
+  t1->Add("/home/souvik/leptoquark_analysis/elec_mode/elec_signalMC/evtgen_*.root/h1");
+  
+  Float_t dm;
+  t1->SetBranchAddress("d0mass", &dm);
+  
+  Float_t dstr;
+  t1->SetBranchAddress("mass", &dstr);
+  
+  Float_t pdst;
+  t1->SetBranchAddress("mom", &pdst);
+  
+  
+  TH2F *hist3 = new TH2F("M_{D} vs #Delta M", "2D distribution of M_{D^{0}} and #Delta M ", 50, 0.14, 0.16, 50, 1.8, 1.9);
+  
+  for (Int_t i = 0; i < t1->GetEntries(); ++i)
+    {
+      t1->GetEntry(i);
+      Float_t md = dstr-dm;
+      if(pdst > 2.5) //put your cuts here
+	{
+	  hist3->Fill(md,dm);
+	}
+    }
+  
+  TCanvas* c3 = new TCanvas();
+  c3->cd();
+  
+  hist3->GetYaxis()->SetTitle("M_{D^{0}}[GeV/c^{2}]");
+  hist3->GetXaxis()->SetTitle("#DeltaM[GeV/c^{2}]");
+  hist3->GetYaxis()->CenterTitle();
+  hist3->GetXaxis()->CenterTitle();
+  hist3->SetLineColor(2);
+  hist3->SetLineWidth(2);
+  hist3->Draw("BOX");
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
