@@ -1,0 +1,170 @@
+#include "Belle2Style.h"
+#include "Belle2Utils.h"
+#include "Belle2Labels.h"
+
+void SetBelle2Style() {
+  static TStyle* belle2Style = 0;
+  cout << "\nApplying BELLE2 style settings...\n" << endl ;
+  if (!belle2Style)
+    belle2Style = Belle2Style();
+  gROOT->SetStyle("BELLE2");
+  gROOT->ForceStyle();
+}
+
+void elec_deltam_fit_bc1() {
+  using namespace RooFit;
+  SetBelle2Style();
+  RooRealVar *deltam = new RooRealVar("deltam","#DeltaM[GeV/c^{2}]", 0.14, 0.152);
+  TChain chain("h1");
+  chain.Add("/home/souvik/leptoquark_analysis/elec_mode/d0barempp_mode/evtgen_exp_*.root");
+  Float_t d0mass,mass,mom,delta,dsmom,dstrf,dz,e1_l,prk1_l,prp1_l,elec_mom,pr_mom,pissvd,elsvd,prsvd,pis_k,bc1,bc3,pis_p ;
+  chain.SetBranchAddress("d0mass",&d0mass);
+  chain.SetBranchAddress("mass",&mass);
+  chain.SetBranchAddress("mom",&mom);
+  chain.SetBranchAddress("deltam",&delta);
+  chain.SetBranchAddress("dz",&dz);
+  chain.SetBranchAddress("dstrf",&dstrf);
+  chain.SetBranchAddress("e1_l",&e1_l);
+  chain.SetBranchAddress("prk1_l",&prk1_l);
+  chain.SetBranchAddress("prp1_l",&prp1_l);
+  chain.SetBranchAddress("elec_mom",&elec_mom);
+  chain.SetBranchAddress("pr_mom",&pr_mom);
+  chain.SetBranchAddress("pissvd",&pissvd);
+  chain.SetBranchAddress("elsvd",&elsvd);
+  chain.SetBranchAddress("prsvd",&prsvd);
+  chain.SetBranchAddress("pis_p",&pis_p);
+  chain.SetBranchAddress("bc1",&bc1);
+  chain.SetBranchAddress("bc3",&bc3);
+   
+  RooDataSet* data=new RooDataSet("data","",RooArgSet(*deltam));
+  for(int i=0;i< chain.GetEntries();i++) {
+    chain.GetEntry(i);
+    double q=mass-d0mass-0.139 ;
+    if(d0mass>1.85 && d0mass<1.875 && delta>0.14 && delta<0.152 && pissvd>2 && elsvd>2 && prsvd>2 && e1_l>0.9 && prk1_l>0.6 && prp1_l>0.6 && pis_p>0.6 && mom>2.5 && pr_mom>1.7 && elec_mom>0.7 && bc1==100)
+     {deltam->setVal(delta);
+       data->add(RooArgSet(*deltam));
+     }
+  }
+  
+  //-------------------signal PDFs--------------------
+  RooRealVar *mean1 = new RooRealVar("mean1", "MEAN of 1st gaussian",0.143,0.147);
+  RooRealVar *sigma1 = new RooRealVar("sigma1", "Sigma of 1st gaussian",0,0.05);
+  RooGaussian *gauss= new RooGaussian("gauss", "1st gaussian PDF", *deltam, *mean1, *sigma1);
+  //RooRealVar *mean2 = new RooRealVar("mean2", "MEAN of 2nd gaussian",0.143,0.147);                                                                                   
+  RooRealVar *delm1=new RooRealVar("delm1", "Difference of Mean",-0.003,0.003);
+  RooFormulaVar *mean2= new RooFormulaVar("mean2","Mean of 2nd gaussian", "@0+@1",RooArgList(*mean1,*delm1));
+  RooRealVar *mean3 = new RooRealVar("mean3", "MEAN of 1st gaussian",0.143,0.152);
+  RooRealVar *sigma2 = new RooRealVar("sigma2", "Sigma of 2nd gaussian",0,0.0089);
+  RooRealVar *sigma3 = new RooRealVar("sigma3", "Sigma of 2nd gaussian",0,0.0089);
+  RooGaussian *gauss2= new RooGaussian("gauss2", "1st gaussian PDF", *deltam, *mean2, *sigma2);
+  RooGaussian *gauss3= new RooGaussian("gauss3", "3rd gaussian PDF", *deltam, *mean3, *sigma3);
+  RooRealVar *a2a_1=new RooRealVar("a2a_1", " Area2/Area1",0.01,1);
+
+  RooRealVar *sls1=new RooRealVar("sls1","Ratio of Sigma",0.,15);
+  RooRealVar *srs1=new RooRealVar("srs1","Ratio of Sigma",0.,30);
+  RooRealVar *a2a=new RooRealVar("a2a", " Area2/Area1",0.01,1.1);
+  //RooRealVar *delm1=new RooRealVar("delm1", "Difference of Mean",0);
+  RooFormulaVar *mean4= new RooFormulaVar("mean4","Mean of 2nd gaussian", "@0+@1",RooArgList(*mean1,*delm1));
+  RooFormulaVar *sigmaL= new RooFormulaVar("sigmaL", "Sigma of 2nd gaussian", " @0*@1", RooArgList(*sigma1,*sls1));
+  RooFormulaVar *sigmaR= new RooFormulaVar("sigmaR", "Sigma of 2nd gaussian", " @0*@1", RooArgList(*sigma1,*srs1));
+  RooBifurGauss *gauss3_1= new RooBifurGauss("gauss3_1", "3nd gaussian PDF", *deltam, *mean4, *sigmaL,*sigmaR);
+
+  RooAddPdf *dG_3= new RooAddPdf("dG_3", " 1st GAuss + 2nd Gauss", RooArgList(*gauss,*gauss2), RooArgList(*a2a_1));
+  RooAddPdf *dG_2= new RooAddPdf("dG_2", " 1st GAuss + 2nd Gauss", RooArgList(*dG_3,*gauss3), RooArgList(*a2a));
+  //RooAddPdf *dG_1= new RooAddPdf("dG_1", " 1st GAuss + 3rd Gauss", RooArgList(*gauss3_1,*gauss), RooArgList(*a2a)); 
+
+  //------------------BKG PDFs--------------------
+  RooRealVar th("th","a",0.138);
+  RooRealVar a("a","a", -511,-5000,5000);
+  RooRealVar b("b","",880 ,-100000,100000);
+  RooRealVar c("c","",0);
+  RooRealVar d("d","",0);//-5,5)
+  RooGenericPdf *t_bkg = new RooGenericPdf("t_bkg",
+                                           "(deltam>=th)*pow((deltam-th),2)*exp(a*(deltam-th)+ b*pow((deltam-th),2))",
+                                           RooArgSet(*deltam,th,a,b));
+
+  RooRealVar * slope1= new RooRealVar("slope1", "Slope of Polynomial", -10, 10);
+  RooRealVar * slope2= new RooRealVar("slope2", " Slope of Cheb2", -1,1);
+  RooChebychev *chebpol = new RooChebychev("chebpol","Chebshev Polynomial ", *deltam, RooArgList(*slope1));
+    
+  RooRealVar *sig = new RooRealVar("sig", "",80,200000);
+  RooRealVar *BKG = new RooRealVar("BKG", "",20,300000);
+
+  RooAddPdf *depdf = new RooAddPdf ("depdf", "Two Gaussian +  ",RooArgList(*dG_2,*t_bkg), RooArgList(*sig,*BKG));
+
+  TCanvas *c1 =new TCanvas ("c1", "D^{0} Mass", 700, 600);
+  c1->Divide(2,2);
+  RooFitResult *fitresult = depdf->fitTo(*data, Extended(true),Minos(true));
+  RooPlot* frame1 = deltam->frame(Bins(100));
+  data->plotOn(frame1);
+  depdf->paramOn(frame1);
+  depdf->plotOn(frame1);
+  double chi2_ndf1 =  frame1->chiSquare();
+  cout << "chi2_ndf1 in data1 = " << chi2_ndf1 << endl;
+  //depdf->plotOn(frame1);                                                                                                                                                                                 
+  RooHist* hpull = frame1->pullHist();
+  hpull->SetFillColor(kAzure-8);
+  RooPlot* frame2 = deltam->frame(Title(" ")) ;
+  frame2->addPlotable(hpull,"P") ;
+  RooArgSet* params = depdf->getParameters(*deltam) ;
+  depdf->plotOn(frame1,Components(RooArgSet(*t_bkg)),LineColor(kRed),LineStyle(kDashed));                               
+  //depdf->plotOn(frame1,Components(RooArgSet(*gauss3_1)),LineColor(kMagenta),LineStyle(kDashed));                                       
+  depdf->plotOn(frame1,Components(RooArgSet(*gauss2)),LineColor(kCyan+2),LineStyle(kDashed));
+  depdf->plotOn(frame1,Components(RooArgSet(*gauss3)),LineColor(kViolet+6),LineStyle(kDashed));
+  depdf->plotOn(frame1,Components(RooArgSet(*gauss)),LineColor(kGreen),LineStyle(kDashed));
+  //depdf->plotOn(frame1,Components(RooArgSet(*dG_1)),LineColor(kBlue),LineStyle(kDashed));                                     
+  frame1->SetTitle("");
+  //frame1->GetYaxis()->SetTitle("Events/(0.225 MeV/c^{2})");
+  frame1->GetYaxis()->CenterTitle();
+  frame1->GetXaxis()->CenterTitle();
+  frame1->SetTitle("");
+  frame1->GetYaxis()->CenterTitle();
+  frame1->GetXaxis()->CenterTitle();
+  TPad *Pad1 = new TPad("Pad1", " ",0.0,0.25,1.0,1.0);
+  Pad1->Draw();
+  TPad *Pad2 = new TPad("Pad2", " ",0.0,0.0,1.0,0.25);
+  Pad2->Draw();
+  Pad1->cd();
+  Pad1->SetTopMargin(0.08);
+  Pad1->SetRightMargin(0.05);
+  Pad1->SetLeftMargin(0.1);
+  Pad1->SetBottomMargin(0.025);
+  frame1->GetXaxis()->SetLabelSize(0.03);
+  frame1->GetXaxis()->SetTitleSize(0.0);
+  frame1->GetXaxis()->SetLabelSize(0.0);
+  frame1->GetYaxis()->SetLabelSize(0.03);
+  frame1->GetYaxis()->SetTitleSize(0.05);
+  frame1->GetYaxis()->SetTitleOffset(0.9);
+  frame1->SetStats(0);
+  frame1->Draw();
+
+  TLatex s;
+  s.SetNDC();
+  s.SetTextFont(42);
+  s.SetTextColor(1);
+  s.DrawLatex(0.3,0.5,"#chi^{2}/ndf = 0.87");
+
+  Pad2->cd();
+  Pad2->SetTopMargin(0.03);
+  Pad2->SetRightMargin(0.05);
+  Pad2->SetLeftMargin(0.1);
+  Pad2->SetBottomMargin(0.4);
+
+  frame2->GetXaxis()->SetNdivisions(505);
+  frame2->GetXaxis()->SetTickLength(0.1);
+  frame2->GetXaxis()->SetTitleSize(0.15);
+  frame2->GetXaxis()->SetLabelSize(0.15);
+  frame2->GetXaxis()->SetTitleOffset(0.95);
+  frame2->GetXaxis()->SetTitle("#DeltaM[GeV/c^{2}]");
+  frame2->GetYaxis()->SetTitle("Pull");
+  frame2->GetYaxis()->CenterTitle();
+  frame2->GetXaxis()->CenterTitle();
+  frame2->GetYaxis()->SetNdivisions(105);
+  frame2->GetYaxis()->SetTickLength(0.075);
+  frame2->GetYaxis()->SetTitleSize(0.15);
+  frame2->GetYaxis()->SetLabelSize(0.15);
+  frame2->GetYaxis()->SetTitleOffset(0.3);
+  //frame2->GetYaxis()->SetMaxDigits(3);                                                                                                                                                                  
+  frame2->Draw();
+  
+}
