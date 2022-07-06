@@ -110,5 +110,3 @@ void crystal_argus_rho() {
 }
 
 
-
-$\mu$
